@@ -245,6 +245,9 @@ public class SyntaxAnnotator {
 			if (!stateLess) {
 				Properties props = new Properties();
 				props.put("annotators", "tokenize, ssplit, pos, lemma, ner");
+				props.setProperty("tokenize.whitespace", "true"); // tokenize on whitespace
+				props.setProperty("tokenize.options", "invertible=true,tokenizeNLs=true"); // doesn't appear to work
+				props.setProperty("tokenize.keepeol", "true"); // keep eol token, for whitespace, also doesn't appear to work
 
 				pipeline = new StanfordCoreNLP(props);
 
@@ -292,7 +295,12 @@ public class SyntaxAnnotator {
 
 		ArrayList<Token> allWords = new ArrayList<Token>();
 
-		Annotation document = new Annotation(doc);
+		// Replace double newlines with paragraph markers since whitespace tokenizer removes \n
+		String paragraphMarker = "<BLANK_PARAGRAPH_MARKER>";
+		String paragraphMarkerSentence = " " + paragraphMarker + " ";
+		String newDoc = doc.replace("\n\n", paragraphMarkerSentence);
+
+		Annotation document = new Annotation(newDoc);
 
 		System.err.println("Tagging and parsing...");
 		pipeline.annotate(document);
@@ -321,6 +329,10 @@ public class SyntaxAnnotator {
 			for (CoreLabel token : sentence.get(TokensAnnotation.class)) {
 
 				String word = token.get(TextAnnotation.class);
+				if (word.equals(paragraphMarker)) {
+					p++;
+					continue;
+				}
 				String pos = token.get(PartOfSpeechAnnotation.class);
 				String lemma = token.get(LemmaAnnotation.class);
 				String ne = token.get(NamedEntityTagAnnotation.class);
